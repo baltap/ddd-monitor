@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { runScrapers, getContracts } from './scraper.js';
+import { runScrapers, getContracts, scraperEvents } from './scraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +12,25 @@ const PORT = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json());
+
+// SSE Endpoint for real-time progress
+app.get('/api/scrape-events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const onStatus = (message) => {
+    res.write(`data: ${JSON.stringify({ message })}\n\n`);
+  };
+
+  scraperEvents.on('status', onStatus);
+
+  req.on('close', () => {
+    scraperEvents.removeListener('status', onStatus);
+    res.end();
+  });
+});
 
 // Main endpoint to get all tracked contracts
 app.get('/api/contracts', (req, res) => {

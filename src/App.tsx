@@ -48,6 +48,7 @@ function App() {
   const [forbiddenWords, setForbiddenWords] = useState<string[]>(['bazény', 'akvárium', 'predaj chémie']);
   const [newForbiddenWord, setNewForbiddenWord] = useState('');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [scrapeStatus, setScrapeStatus] = useState('');
 
 
   const fetchContracts = async () => {
@@ -69,6 +70,15 @@ function App() {
 
   const triggerScrape = async () => {
     setLoading(true);
+    setScrapeStatus('Pripravujem monitoring...');
+
+    // Start listening for events before triggering the scrape
+    const eventSource = new EventSource('/api/scrape-events');
+    eventSource.onmessage = (event) => {
+      const { message } = JSON.parse(event.data);
+      setScrapeStatus(message);
+    };
+
     try {
       await fetch('/api/scrape', { method: 'POST' });
       await fetchContracts();
@@ -76,7 +86,10 @@ function App() {
       setLastChecked(`${now.toLocaleDateString('sk-SK')} ${now.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}`);
     } catch (err) {
       console.error('Error triggering scrape', err);
+    } finally {
+      eventSource.close();
       setLoading(false);
+      setScrapeStatus('');
     }
   };
 
@@ -159,12 +172,10 @@ function App() {
               className="btn btn-primary" 
               onClick={triggerScrape} 
               disabled={loading}
+              style={{ padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}
             >
-              {loading ? (
-                <><Loader2 className="animate-spin" size={16} /> Očkáva sa...</>
-              ) : (
-                <><RefreshCw size={16} /> Spustiť Monitoring</>
-              )}
+              <RefreshCw className={loading ? 'animate-spin' : ''} size={18} />
+              {loading ? (scrapeStatus || 'Očakáva sa...') : 'Spustiť Monitoring'}
             </button>
           </div>
         </header>
@@ -256,11 +267,14 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
+                  {loading && filteredData.length === 0 ? (
                     <tr>
-                       <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                          Načítavam dáta zo serverov...
-                       </td>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '100px 0', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                          <RefreshCw className="animate-spin" size={32} style={{ color: 'var(--brand-primary)' }} />
+                          <span style={{ fontSize: '1.1rem' }}>{scrapeStatus || 'Načítavam dáta zo serverov...'}</span>
+                        </div>
+                      </td>
                     </tr>
                   ) : filteredData.length === 0 ? (
                     <tr>

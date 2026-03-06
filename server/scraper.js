@@ -2,7 +2,10 @@ import axios from 'axios';
 import cron from 'node-cron';
 import Parser from 'rss-parser';
 import puppeteer from 'puppeteer';
+import { EventEmitter } from 'events';
 import { sendNewContractsEmail } from './emailService.js';
+
+export const scraperEvents = new EventEmitter();
 
 const parser = new Parser();
 
@@ -11,8 +14,8 @@ let currentContracts = [];
 let notifiedIds = new Set();
 
 async function fetchUvoSearch() {
-  // We use datumAktualizacie=31 to get only tenders updated in the last month
   const searchUrl = 'https://www.uvo.gov.sk/vyhladavanie/vyhladavanie-zakaziek?nazovZakazky=deratiz%C3%A1cia&datumAktualizacie=31';
+  scraperEvents.emit('status', 'Pripájam sa k ÚVO (Vestník)...');
   console.log(`[UVO] Monitorujem AKTUÁLNE ponuky (posledných 31 dní): ${searchUrl}`);
   
   const results = [];
@@ -118,6 +121,7 @@ async function fetchUvoSearch() {
  */
 async function scrapeProebiz() {
   const searchUrl = 'https://josephine.proebiz.com/sk/public-tenders/all?filter[search]=deratiz%C3%A1cia';
+  scraperEvents.emit('status', 'Skenujem Josephine (Proebiz)...');
   console.log(`[Josephine] Skenujem portál: ${searchUrl}`);
   
   const results = [];
@@ -191,6 +195,7 @@ async function scrapeProebiz() {
  */
 async function scrapeUradnaNastenka() {
   const searchUrl = 'https://www.uradnanastenka.sk/zakazky?filters%5Bquery%5D%5B0%5D=dezinfekcia';
+  scraperEvents.emit('status', 'Prehľadávam Úradnú nástenku...');
   console.log(`[Nástenka] Monitorujem portál: ${searchUrl}`);
   
   const results = [];
@@ -265,6 +270,7 @@ async function scrapeUradnaNastenka() {
  */
 async function fetchEksSearch() {
   const portalUrl = 'https://eo.eks.sk/Prehlady/ZakazkyVerejnost';
+  scraperEvents.emit('status', 'Preverujem EKS (Trhovisko)...');
   console.log(`[EKS] Spúšťam TRHOVISKO (EO): ${portalUrl}`);
   
   const results = [];
@@ -361,6 +367,7 @@ export async function runScrapers() {
       console.log(`[Queue] Spúšťam další scraper v poradí...`);
       const res = await scraper();
       scrapedResults.push(res);
+      scraperEvents.emit('status', 'Ukladám výsledky a uvoľňujem pamäť...');
       // Malá pauza medzi scrapovaním pre uvoľnenie RAM
       await new Promise(r => setTimeout(r, 2000));
     }
@@ -388,6 +395,7 @@ export async function runScrapers() {
     }
 
     currentContracts = allResults;
+    scraperEvents.emit('status', `Monitoring úspešne dokončený. Nájdených ${allResults.length} záznamov.`);
     console.log(`Dokončené! Monitorovaných ${currentContracts.length} záznamov.`);
     console.log('=============================================\n');
     return currentContracts;
