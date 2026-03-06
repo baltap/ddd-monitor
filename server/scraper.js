@@ -228,29 +228,58 @@ async function scrapeUradnaNastenka() {
       }).filter(i => i !== null);
     });
 
-    // We deep dive into 3 to show high quality detail, the rest we show as basic
-    for (let i = 0; i < Math.min(items.length, 10); i++) {
+    // We now deep dive into all items (up to 15) to get accurate status/expiry
+    for (let i = 0; i < Math.min(items.length, 15); i++) {
         const item = items[i];
-        if (i < 3) {
-            try {
-                console.log(`[Nástenka] Sťahujem detail: ${item.title}`);
-                await page.goto(item.link, { waitUntil: 'domcontentloaded', timeout: 15000 });
-                const detail = await page.evaluate(() => {
-                    const text = document.body.innerText;
-                    const lines = text.split('\n').map(l => l.trim());
-                    const locIdx = lines.findIndex(l => l.startsWith('Lokalita:'));
-                    const location = locIdx !== -1 ? lines[locIdx + 1].replace(/^- /, '') : 'Slovensko';
-                    const valIdx = lines.findIndex(l => l.startsWith('Hodnota:'));
-                    const value = valIdx !== -1 ? lines[valIdx + 1].replace(/^- /, '') : 'Dohodou';
-                    const expMatch = text.match(/Dátum expirácie:\s*(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})/);
-                    return { location, value, deadline: expMatch ? expMatch[1] : 'Neznámy', status: text.includes('Expirovaná') ? 'expired' : 'active' };
-                });
-                results.push({ id: `n-deep-${Date.now()}-${i}`, title: item.title, buyer: `Samospráva (${detail.location})`, cpv: '90921000-9', source: 'ÚradnáNástenka.sk', value: detail.value, deadline: detail.deadline, status: detail.status, type: 'Zakázka detail', link: item.link, location: detail.location });
-            } catch (e) {
-                results.push({ id: `n-fallback-${Date.now()}-${i}`, title: item.title, buyer: 'Samospráva (Slovensko)', cpv: '90921000-9', source: 'ÚradnáNástenka.sk', value: item.price, deadline: item.added, status: 'active', type: 'Zakázka zoznam', link: item.link });
-            }
-        } else {
-            results.push({ id: `n-basic-${Date.now()}-${i}`, title: item.title, buyer: 'Samospráva (Slovensko)', cpv: '90921000-9', source: 'ÚradnáNástenka.sk', value: item.price, deadline: item.added, status: 'active', type: 'Zakázka zoznam', link: item.link });
+        try {
+            console.log(`[Nástenka] Sťahujem detail: ${item.title}`);
+            await page.goto(item.link, { waitUntil: 'domcontentloaded', timeout: 15000 });
+            const detail = await page.evaluate(() => {
+                const text = document.body.innerText;
+                const lines = text.split('\n').map(l => l.trim());
+                
+                const locIdx = lines.findIndex(l => l.startsWith('Lokalita:'));
+                const location = locIdx !== -1 ? lines[locIdx + 1].replace(/^- /, '') : 'Slovensko';
+                
+                const valIdx = lines.findIndex(l => l.startsWith('Hodnota:'));
+                const value = valIdx !== -1 ? lines[valIdx + 1].replace(/^- /, '') : 'Dohodou';
+                
+                const expMatch = text.match(/Dátum expirácie:\s*(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})/);
+                const deadline = expMatch ? expMatch[1] : 'Neznámy';
+                
+                // Detect expired status from the page content
+                const isExpired = text.includes('Expirovaná') || text.includes('Ukončená');
+                
+                return { location, value, deadline, status: isExpired ? 'expired' : 'active' };
+            });
+
+            results.push({ 
+                id: `n-deep-${Date.now()}-${i}`, 
+                title: item.title, 
+                buyer: `Samospráva (${detail.location})`, 
+                cpv: '90921000-9', 
+                source: 'ÚradnáNástenka.sk', 
+                value: detail.value, 
+                deadline: detail.deadline, 
+                status: detail.status, 
+                type: 'Zakázka detail', 
+                link: item.link, 
+                location: detail.location 
+            });
+        } catch (e) {
+            // Fallback if detail fetch fails
+            results.push({ 
+                id: `n-fallback-${Date.now()}-${i}`, 
+                title: item.title, 
+                buyer: 'Samospráva (Slovensko)', 
+                cpv: '90921000-9', 
+                source: 'ÚradnáNástenka.sk', 
+                value: item.price, 
+                deadline: item.added, 
+                status: 'active', 
+                type: 'Zakázka zoznam', 
+                link: item.link 
+            });
         }
     }
 
