@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { 
+  AlertTriangle,
   Building2, 
+  Check,
+  ChevronRight,
   Clock, 
-  LayoutDashboard, 
-  Settings, 
-  AlertTriangle, 
-  TrendingUp,
-  Loader2,
   ExternalLink,
-  ShieldCheck,
   FileText,
-  RefreshCw,
   Globe,
+  LayoutDashboard, 
   Plus,
+  RefreshCw,
+  Settings, 
+  ShieldCheck,
   Trash2,
-  Check
+  TrendingUp
 } from 'lucide-react';
 
 interface ContractData {
@@ -80,7 +80,8 @@ function App() {
     };
 
     try {
-      await fetch('/api/scrape', { method: 'POST' });
+      const response = await fetch('/api/scrape', { method: 'POST' });
+      if (!response.ok) throw new Error(`Server vrátil chybu ${response.status}`);
       await fetchContracts();
       const now = new Date();
       setLastChecked(`${now.toLocaleDateString('sk-SK')} ${now.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}`);
