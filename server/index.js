@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { runScrapers, getContracts, scraperEvents } from './scraper.js';
+import { runScrapers, getContracts, scraperEvents, getLastRunTimestamp } from './scraper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +35,11 @@ app.get('/api/scrape-events', (req, res) => {
 // Main endpoint to get all tracked contracts
 app.get('/api/contracts', (req, res) => {
   const contracts = getContracts();
-  res.json(contracts);
+  const lastChecked = getLastRunTimestamp();
+  res.json({
+    data: contracts,
+    lastChecked: lastChecked ? lastChecked.toISOString() : null
+  });
 });
 
 // Endpoint to manually trigger a scrape

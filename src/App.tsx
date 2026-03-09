@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Building2, 
   Check,
-  ChevronRight,
   Clock, 
   ExternalLink,
   FileText,
@@ -42,7 +41,7 @@ function App() {
   // Settings State
   const [cpvCodes, setCpvCodes] = useState<string[]>(['90923000-3', '90921000-9', '90920000-2']);
   const [keywords, setKeywords] = useState<string[]>(['deratizácia', 'dezinsekcia', 'dezinfekcia', 'škodcovia']);
-  const [lastChecked, setLastChecked] = useState<string>('06.03.2026 16:45');
+  const [lastChecked, setLastChecked] = useState<string>('Prebieha...');
   const [newKeyword, setNewKeyword] = useState('');
   const [newCpv, setNewCpv] = useState('');
   const [forbiddenWords, setForbiddenWords] = useState<string[]>(['bazény', 'akvárium', 'predaj chémie']);
@@ -54,9 +53,18 @@ function App() {
   const fetchContracts = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/contracts');
-      const json = await res.json();
-      setData(json);
+      const resp = await fetch('/api/contracts');
+      const result = await resp.json();
+      
+      // result is now { data: [], lastChecked: ISOString }
+      setData(result.data || []);
+      
+      if (result.lastChecked) {
+        const date = new Date(result.lastChecked);
+        setLastChecked(`${date.toLocaleDateString('sk-SK')} ${date.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}`);
+      } else {
+        setLastChecked('Zatiaľ neprebehlo');
+      }
     } catch (err) {
       console.error('Error fetching contracts', err);
     } finally {
@@ -83,8 +91,6 @@ function App() {
       const response = await fetch('/api/scrape', { method: 'POST' });
       if (!response.ok) throw new Error(`Server vrátil chybu ${response.status}`);
       await fetchContracts();
-      const now = new Date();
-      setLastChecked(`${now.toLocaleDateString('sk-SK')} ${now.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })}`);
     } catch (err) {
       console.error('Error triggering scrape', err);
     } finally {

@@ -12,6 +12,7 @@ const parser = new Parser();
 // This is where parsed data will live in memory for this demo
 let currentContracts = [];
 let notifiedIds = new Set();
+let lastRunTimestamp = null;
 
 async function fetchUvoSearch() {
   const searchUrl = 'https://www.uvo.gov.sk/vyhladavanie/vyhladavanie-zakaziek?nazovZakazky=deratiz%C3%A1cia&datumAktualizacie=31';
@@ -424,6 +425,7 @@ export async function runScrapers() {
     }
 
     currentContracts = allResults;
+    lastRunTimestamp = new Date();
     scraperEvents.emit('status', `Monitoring úspešne dokončený. Nájdených ${allResults.length} záznamov.`);
     console.log(`Dokončené! Monitorovaných ${currentContracts.length} záznamov.`);
     console.log('=============================================\n');
@@ -436,6 +438,10 @@ export async function runScrapers() {
 
 export function getContracts() {
   return currentContracts;
+}
+
+export function getLastRunTimestamp() {
+  return lastRunTimestamp;
 }
 
 cron.schedule('0 8-17 * * 1-5', () => runScrapers());
