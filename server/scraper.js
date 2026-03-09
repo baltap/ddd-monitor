@@ -444,4 +444,7 @@ export function getLastRunTimestamp() {
   return lastRunTimestamp;
 }
 
-cron.schedule('0 8-17 * * 1-5', () => runScrapers());
+cron.schedule('0 8-17 * * 1-5', () => runScrapers(), {
+  scheduled: true,
+  timezone: "Europe/Bratislava"
+});
